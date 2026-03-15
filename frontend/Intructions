@@ -1,0 +1,811 @@
+# Create Note Modal Implementation
+
+## Goal
+Replace the pencil icon's page navigation with a modal popup for creating notes.
+
+## Steps to Implement
+
+### 1. Create a Modal Component (`src/components/CreateNoteModal.jsx`)
+
+```jsx
+import { useState } from 'react';
+import { X } from 'lucide-react';
+
+const CreateNoteModal = ({ isOpen, onClose, onNoteCreated }) => {
+    const [title, setTitle] = useState('');
+    const [content, setContent] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        
+        try {
+            const res = await fetch('http://localhost:5000/api/notes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, content })
+            });
+            
+            if (res.ok) {
+                setTitle('');
+                setContent('');
+                onClose();
+                onNoteCreated?.(); // Callback to refresh notes list
+            }
+        } catch (error) {
+            console.error('Error creating note:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-base-200 rounded-lg p-6 w-full max-w-md mx-4 relative">
+                {/* Close Button */}
+                <button 
+                    onClick={onClose}
+                    className="absolute top-3 right-3 text-base-content/60 hover:text-base-content"
+                >
+                    <X className="size-5" />
+                </button>
+
+                <h2 className="text-xl font-bold mb-4">Create New Note</h2>
+                
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Title</label>
+                        <input
+                            type="text"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            className="input input-bordered w-full"
+                            placeholder="Enter note title"
+                            required
+                        />
+                    </div>
+                    
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Content</label>
+                        <textarea
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            className="textarea textarea-bordered w-full h-32"
+                            placeholder="Enter note content"
+                            required
+                        />
+                    </div>
+                    
+                    <button 
+                        type="submit" 
+                        className="btn btn-primary w-full"
+                        disabled={loading}
+                    >
+                        {loading ? 'Creating...' : 'Create Note'}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+export default CreateNoteModal;
+```
+
+### 2. Update Navbar Component (`src/components/Navbar.jsx`)
+
+```jsx
+import { useState } from 'react';
+import { Pencil } from 'lucide-react';
+import { Link } from 'react-router';
+import CreateNoteModal from './CreateNoteModal';
+
+const Navbar = ({ onNoteCreated }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    return (
+        <>
+            <header className='bg-base-300 border-b border-base-content/10 rounded-full m-4 ml-8 mr-8'>
+                <div className='mx-auto max-w-7xl p-2'>
+                    <div className='flex items-center justify-between'>
+                        <Link to="/">
+                            <h1 className='text-2xl font-bold text-primary tracking-tight'>Notes</h1>
+                        </Link>
+                        <div className='flex items-center gap-10'>
+                            <button onClick={() => setIsModalOpen(true)}>
+                                <Pencil className='size-5' />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <CreateNoteModal 
+                isOpen={isModalOpen} 
+                onClose={() => setIsModalOpen(false)}
+                onNoteCreated={onNoteCreated}
+            />
+        </>
+    );
+};
+
+export default Navbar;
+```
+
+### 3. Update App.jsx to Pass Refresh Callback
+
+In your App.jsx, pass a function to Navbar that refreshes the notes list when a new note is created:
+
+```jsx
+// If using state management, pass a refetch function to Navbar
+<Navbar onNoteCreated={refetchNotes} />
+```
+
+## Key Features
+- Modal overlay with dark backdrop
+- Close button (X) in top-right corner
+- Click outside closes modal (optional: add `onClick` on backdrop)
+- Form validation with `required` attributes
+- Loading state while creating note
+- Callback to refresh notes list after creation
+
+## Optional Enhancements
+- Add click-outside-to-close: Add `onClick={onClose}` to backdrop div (with `e.stopPropagation()` on inner modal)
+- Add escape key to close: Use `useEffect` with keydown listener
+- Add toast notifications for success/error feedback
+
+---
+
+# Edit Note Modal Implementation (PUT Functionality)
+
+## Goal
+Make the PenSquareIcon in NoteCard open an edit modal to update the note.
+
+## Steps to Implement
+
+### 1. Create an EditNote Modal Component (`src/components/EditNote.jsx`)
+
+```jsx
+import { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
+
+const EditNote = ({ isOpen, onClose, note, onNoteUpdated }) => {
+    const [title, setTitle] = useState('');
+    const [content, setContent] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    // Populate form when note changes or modal opens
+    useEffect(() => {
+        if (note && isOpen) {
+            setTitle(note.title);
+            setContent(note.content);
+        }
+    }, [note, isOpen]);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+
+        try {
+            const res = await fetch(`http://localhost:5001/api/notes/${note._id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, content })
+            });
+
+            if (res.ok) {
+                onClose();
+                onNoteUpdated?.(); // Callback to refresh notes list
+            }
+        } catch (error) {
+            console.error('Error updating note:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50'>
+            <div className='bg-base-200 rounded-lg p-6 w-full max-w-md mx-4 relative'>
+                <button 
+                    onClick={onClose} 
+                    className='absolute top-3 right-3 text-base-content/60 hover:text-base-content'
+                >
+                    <X className='size-5' />
+                </button>
+
+                <h2 className='text-xl font-bold mb-4'>Edit Note</h2>
+
+                <form onSubmit={handleSubmit} className='space-y-4'>
+                    <div>
+                        <label className='block text-sm font-medium mb-1'>Title</label>
+                        <input
+                            type="text"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            className='input input-bordered w-full'
+                            placeholder='Enter the title'
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className='block text-sm font-medium mb-1'>Content</label>
+                        <textarea
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            className='textarea textarea-bordered w-full h-32'
+                            placeholder='Type Something...'
+                            required
+                        />
+                    </div>
+                    <button
+                        type='submit'
+                        className='btn btn-primary w-full'
+                        disabled={loading}
+                    >
+                        {loading ? 'Updating...' : 'Update Note'}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+export default EditNote;
+```
+
+### 2. Update NoteCard Component (`src/components/NoteCard.jsx`)
+
+```jsx
+import { useState } from 'react';
+import { PenSquareIcon, Trash2Icon } from 'lucide-react';
+import { Link } from 'react-router';
+import { formatDate } from '../lib/utils';
+import EditNote from './EditNote';
+
+const NoteCard = ({ note, onNoteUpdated }) => {
+    const [isEditOpen, setIsEditOpen] = useState(false);
+
+    const handleEditClick = (e) => {
+        e.preventDefault(); // Prevent Link navigation
+        e.stopPropagation();
+        setIsEditOpen(true);
+    };
+
+    return (
+        <>
+            <Link to={`/note/${note._id}`} className='card bg-base-100 hover:shadow-lg transition-all duration-200 border-t-4 border-solid border-[#02497e]'>
+                <div className='card-body bg-slate-200'>
+                    <h3 className='card-title text-base-content'>{note.title}</h3>
+                    <p className='text-base-content/70 line-clamp-3'>{note.content}</p>
+                    <div className='card-actions justify-between items-center mt-4'>
+                        <span className='text-sm text-base-content/60'>
+                            {formatDate(new Date(note.createdAt))}
+                        </span>
+                        <div className='flex items-center gap-1'>
+                            <button 
+                                onClick={handleEditClick}
+                                className='btn btn-ghost btn-xs'
+                            >
+                                <PenSquareIcon className='size-4' />
+                            </button>
+                            <button className='btn btn-ghost btn-xs text-error'>
+                                <Trash2Icon className='size-4' />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Link>
+
+            <EditNote
+                isOpen={isEditOpen}
+                onClose={() => setIsEditOpen(false)}
+                note={note}
+                onNoteUpdated={onNoteUpdated}
+            />
+        </>
+    );
+};
+
+export default NoteCard;
+```
+
+### 3. Update HomePage to Pass Refresh Callback to NoteCard
+
+```jsx
+{notes.map(note => (
+    <NoteCard 
+        key={note._id} 
+        note={note} 
+        onNoteUpdated={fetchNotes}  // Pass the refresh function
+    />
+))}
+```
+
+## Key Points
+- `e.preventDefault()` and `e.stopPropagation()` prevent the Link from navigating when clicking the edit button
+- `useEffect` pre-fills the form with existing note data when the modal opens
+- Uses PUT method to update the note by ID
+- Callback refreshes the notes list after successful update
+
+---
+
+# Delete Note Implementation (DELETE Functionality)
+
+## Goal
+Make the Trash2Icon in NoteCard delete the note with a confirmation.
+
+## Steps to Implement
+
+### 1. Update NoteCard Component (`src/components/NoteCard.jsx`)
+
+```jsx
+import axios from 'axios';
+import { useState } from 'react';
+import { PenSquareIcon, Trash2Icon } from 'lucide-react';
+import { Link } from 'react-router';
+import toast from 'react-hot-toast';
+import { formatDate } from '../lib/utils';
+import EditNote from './EditNote';
+
+const NoteCard = ({ note, onNoteUpdated, onNoteDeleted }) => {
+    const [isEditOpen, setIsEditOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleEdit = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsEditOpen(true);
+    };
+
+    const handleDelete = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Optional: Add confirmation
+        if (!window.confirm('Are you sure you want to delete this note?')) {
+            return;
+        }
+
+        setIsDeleting(true);
+        try {
+            await axios.delete(`http://localhost:5001/api/notes/${note._id}`);
+            toast.success('Note deleted successfully');
+            onNoteDeleted?.(); // Refresh notes list
+        } catch (error) {
+            console.error('Error deleting note:', error);
+            toast.error('Failed to delete note');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    return (
+        <>
+            <Link to={`/note/${note._id}`} className='card bg-base-100 hover:shadow-lg transition-all duration-200 border-t-4 border-solid border-[#02497e]'>
+                <div className='card-body bg-slate-200'>
+                    <h3 className='card-title text-base-content'>{note.title}</h3>
+                    <p className='text-base-content/70 line-clamp-3'>{note.content}</p>
+                    <div className='card-actions justify-between items-center mt-4'>
+                        <span className='text-sm text-base-content/60'>
+                            {formatDate(new Date(note.createdAt))}
+                        </span>
+                        <div className='flex items-center gap-1'>
+                            <button onClick={handleEdit} className='btn btn-ghost btn-xs'>
+                                <PenSquareIcon className='size-4' />
+                            </button>
+                            <button 
+                                onClick={handleDelete} 
+                                className='btn btn-ghost btn-xs text-error'
+                                disabled={isDeleting}
+                            >
+                                <Trash2Icon className='size-4' />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Link>
+            <EditNote
+                isOpen={isEditOpen}
+                onClose={() => setIsEditOpen(false)}
+                note={note}
+                onNoteUpdated={onNoteUpdated}
+            />
+        </>
+    );
+};
+
+export default NoteCard;
+```
+
+### 2. Update HomePage to Pass Delete Callback
+
+```jsx
+{notes.map(note => (
+    <NoteCard 
+        key={note._id} 
+        note={note} 
+        onNoteUpdated={fetchNotes}
+        onNoteDeleted={fetchNotes}  // Same callback to refresh list
+    />
+))}
+```
+
+## Key Points
+- `e.preventDefault()` and `e.stopPropagation()` prevent Link navigation when clicking delete
+- `window.confirm()` shows a browser confirmation dialog before deleting
+- Uses DELETE method with the note ID
+- Shows toast notifications for success/error feedback
+- `isDeleting` state disables button during deletion to prevent double-clicks
+- Callback refreshes the notes list after successful deletion
+
+## Optional: Custom Delete Confirmation Modal
+
+Instead of `window.confirm()`, you can create a custom modal:
+
+```jsx
+const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+// In the return:
+{showDeleteConfirm && (
+    <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50'>
+        <div className='bg-base-200 rounded-lg p-6 max-w-sm mx-4'>
+            <h3 className='font-bold text-lg mb-2'>Delete Note?</h3>
+            <p className='text-base-content/70 mb-4'>This action cannot be undone.</p>
+            <div className='flex gap-2 justify-end'>
+                <button 
+                    onClick={() => setShowDeleteConfirm(false)} 
+                    className='btn btn-ghost'
+                >
+                    Cancel
+                </button>
+                <button 
+                    onClick={confirmDelete} 
+                    className='btn btn-error'
+                    disabled={isDeleting}
+                >
+                    {isDeleting ? 'Deleting...' : 'Delete'}
+                </button>
+            </div>
+        </div>
+    </div>
+)}
+```
+
+---
+
+# Note Detail Page Implementation
+
+## Goal
+Display full note details when clicking on a note card, with "Title" and "Content" labels, and floating circular edit/delete buttons at bottom right.
+
+## Implementation (`src/pages/NoteDetailPage.jsx`)
+
+```jsx
+import axios from 'axios';
+import { ArrowLeft, PenSquareIcon, Trash2Icon } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
+import { Link, useNavigate, useParams } from 'react-router';
+import EditNote from '../components/EditNote';
+import RateLimitedUI from '../components/RateLimitedUI';
+import { formatDate } from '../lib/utils';
+
+const NoteDetailPage = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [note, setnote] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isRateLimited, setIsRateLimited] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const fetchNote = async () => {
+    try {
+      const res = await axios.get(`http://localhost:5001/api/notes/${id}`);
+      setnote(res.data);
+      setIsRateLimited(false);
+    } catch (error) {
+      console.error('Error fetching note details', error);
+      if (error.response?.status === 429) {
+        setIsRateLimited(true);
+      } else if (error.response?.status === 404) {
+        toast.error('Note not found');
+        navigate('/');
+      } else {
+        toast.error('Error fetching note details');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNote();
+  }, [id]);
+
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this note?')) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await axios.delete(`http://localhost:5001/api/notes/${id}`);
+      toast.success('Note deleted successfully');
+      navigate('/');
+    } catch (error) {
+      console.error('Error deleting note', error);
+      toast.error('Error deleting note');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <div className='min-h-screen'>
+      {isRateLimited && (
+        <div className='flex items-center justify-center h-screen'>
+          <div className='w-full'>
+            <RateLimitedUI />
+          </div>
+        </div>
+      )}
+
+      <div className='max-w-6xl mx-auto p-4 mt-6'>
+        <Link
+          to='/'
+          className='inline-flex items-center gap-2 text-primary hover:underline mb-6'
+        >
+          <ArrowLeft className='size-4' />
+          Back to Notes
+        </Link>
+
+        {loading && (
+          <div className='text-center text-primary py-10'>Loading</div>
+        )}
+
+        {!loading && note && !isRateLimited && (
+          <div className='card bg-base-100 border-t-4 border-solid border-[#02497e]'>
+            <div className='card-body bg-slate-200'>
+              <div className='mb-4'>
+                <p className='text-sm font-medium text-base-content/60 mb-1'>Title</p>
+                <h1 className='text-2xl font-bold text-base-content'>{note.title}</h1>
+              </div>
+
+              <div className='mb-4'>
+                <p className='text-sm font-medium text-base-content/60 mb-1'>Content</p>
+                <p className='text-base-content/80 whitespace-pre-wrap'>{note.content}</p>
+              </div>
+
+              <p className='text-xs text-base-content/50 mt-4'>
+                Created: {formatDate(new Date(note.createdAt))}
+                {note.updatedAt !== note.createdAt && (
+                  <span> • Updated: {formatDate(new Date(note.updatedAt))}</span>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!loading && !note && !isRateLimited && (
+          <div className='text-center text-base-content/60 py-10'>
+            Note not found
+          </div>
+        )}
+      </div>
+
+      {/* Floating circular buttons - bottom right */}
+      {note && !isRateLimited && (
+        <div className='fixed bottom-6 right-6 flex items-center gap-3'>
+          <button
+            onClick={() => setIsEditOpen(true)}
+            className='btn btn-circle btn-primary shadow-lg'
+          >
+            <PenSquareIcon className='size-5' />
+          </button>
+          <button
+            onClick={handleDelete}
+            className='btn btn-circle btn-error shadow-lg'
+            disabled={isDeleting}
+          >
+            <Trash2Icon className='size-5' />
+          </button>
+        </div>
+      )}
+
+      <EditNote
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        note={note}
+        onNoteUpdated={fetchNote}
+      />
+    </div>
+  );
+};
+
+export default NoteDetailPage;
+```
+
+## Key Features
+- Fetches single note by ID from URL params using `useParams()`
+- Back navigation link to home page with arrow icon
+- **"Title" label** displayed above the actual title
+- **"Content" label** displayed above the actual content
+- Full note content displayed with `whitespace-pre-wrap` (preserves line breaks)
+- Shows created and updated timestamps
+- **Floating circular buttons** fixed at bottom-right corner:
+  - Edit button (`btn btn-circle btn-primary`) - opens EditNote modal
+  - Delete button (`btn btn-circle btn-error`) - confirms and deletes
+- Loading state while fetching
+- Rate limit handling with RateLimitedUI component
+- 404 handling redirects to home with toast notification
+
+## Route Configuration (App.jsx)
+```jsx
+<Route path="/note/:id" element={<NoteDetailPage />} />
+```
+
+---
+
+# Custom Delete Popup Implementation (Replace Browser Confirm)
+
+## Goal
+Replace native `window.confirm()` with a reusable, custom-designed delete confirmation modal.
+
+## 1. Create Reusable Modal (`src/components/ConfirmDeleteModal.jsx`)
+
+```jsx
+import { AlertTriangle, X } from 'lucide-react';
+
+const ConfirmDeleteModal = ({
+    isOpen,
+    onClose,
+    onConfirm,
+    isDeleting = false,
+    title = 'Delete note?',
+    message = 'This action cannot be undone. This note will be permanently removed.'
+}) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4'>
+            <div className='relative w-full max-w-md rounded-2xl border border-error/20 bg-base-100 p-6 shadow-2xl'>
+                <button
+                    type='button'
+                    onClick={onClose}
+                    className='btn btn-ghost btn-sm btn-circle absolute right-3 top-3'
+                    disabled={isDeleting}
+                    aria-label='Close delete confirmation'
+                >
+                    <X className='size-4' />
+                </button>
+
+                <div className='mb-4 inline-flex items-center justify-center rounded-full bg-error/10 p-3 text-error'>
+                    <AlertTriangle className='size-6' />
+                </div>
+
+                <h3 className='text-xl font-semibold text-base-content'>{title}</h3>
+                <p className='mt-2 text-sm text-base-content/70'>{message}</p>
+
+                <div className='mt-6 flex items-center justify-end gap-3'>
+                    <button
+                        type='button'
+                        onClick={onClose}
+                        className='btn btn-ghost'
+                        disabled={isDeleting}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type='button'
+                        onClick={onConfirm}
+                        className='btn btn-error'
+                        disabled={isDeleting}
+                    >
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default ConfirmDeleteModal;
+```
+
+## 2. Use in NoteCard (`src/components/NoteCard.jsx`)
+
+### State and Imports
+```jsx
+import ConfirmDeleteModal from './ConfirmDeleteModal';
+
+const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+```
+
+### Replace current delete start
+```jsx
+const handleDelete = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDeleteModalOpen(true);
+};
+```
+
+### Move delete API call into confirm action
+```jsx
+const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+        await axios.delete(`http://localhost:5001/api/notes/${note._id}`);
+        toast.success('Note deleted successfully');
+        onNoteDeleted?.();
+        setIsDeleteModalOpen(false);
+    } catch (error) {
+        console.error('Error deleting note');
+        toast.error('Error deleting note');
+    } finally {
+        setIsDeleting(false);
+    }
+};
+```
+
+### Render modal near component bottom
+```jsx
+<ConfirmDeleteModal
+    isOpen={isDeleteModalOpen}
+    onClose={() => setIsDeleteModalOpen(false)}
+    onConfirm={confirmDelete}
+    isDeleting={isDeleting}
+/>
+```
+
+## 3. Use in NoteDetailPage (`src/pages/NoteDetailPage.jsx`)
+
+### State and imports
+```jsx
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+
+const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+```
+
+### Replace direct confirm in delete handler
+```jsx
+const handleDelete = async () => {
+    setIsDeleteModalOpen(true);
+};
+
+const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+        await axios.delete(`http://localhost:5001/api/notes/${id}`);
+        toast.success('Note deleted successfully');
+        setIsDeleteModalOpen(false);
+        navigate('/');
+    } catch (error) {
+        console.error('Error deleting note', error);
+        toast.error('Error deleting note');
+    } finally {
+        setIsDeleting(false);
+    }
+};
+```
+
+### Render modal in page return
+```jsx
+<ConfirmDeleteModal
+    isOpen={isDeleteModalOpen}
+    onClose={() => setIsDeleteModalOpen(false)}
+    onConfirm={confirmDelete}
+    isDeleting={isDeleting}
+/>
+```
+
+## Result
+- No native browser popup.
+- Consistent custom UI for deletion everywhere.
+- Better UX with loading state and reusable component.
