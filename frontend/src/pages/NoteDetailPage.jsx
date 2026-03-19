@@ -1,11 +1,11 @@
-import axios from 'axios';
 import { ArrowLeft, PenSquareIcon, Trash2Icon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import EditNote from '../components/EditNote';
 import RateLimitedUI from '../components/RateLimitedUI';
-import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import apiClient from '../lib/apiClient';
 import { formatDate } from '../lib/utils';
 
 
@@ -21,7 +21,7 @@ const NoteDetailPage = () => {
 
   const fetchNote = async () => {
     try {
-      const res = await axios.get(`http://localhost:5001/api/notes/${id}`);
+      const res = await apiClient.get(`/notes/${id}`);
       setnote(res.data);
       setIsRateLimited(false);
     } catch (error) {
@@ -51,7 +51,7 @@ const NoteDetailPage = () => {
   const confirmDelete = async () => {
     setIsDeleting(true);
     try {
-      await axios.delete(`http://localhost:5001/api/notes/${id}`);
+      await apiClient.delete(`/notes/${id}`);
       toast.success('Note deleted successfully');
       navigate('/');
     } catch (error) {
@@ -105,7 +105,7 @@ const NoteDetailPage = () => {
         )}
       </div>
       {note && !isRateLimited && (
-        <div className='fixed bottom-4 right-4 flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-end gap-3 rounded-full bg-base-100/90 px-4 py-3 shadow-lg backdrop-blur sm:bottom-6 sm:right-6'>
+        <div className='fixed bottom-4 right-4 flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-end gap-3 rounded-full bg-base-100/90 px-4 py-3 border border-stone-600 backdrop-blur sm:bottom-6 sm:right-6'>
           <p className='mr-2 text-right text-xs text-base-content/50 sm:mr-4'>
             Created: {formatDate(new Date(note.createdAt))}
             {note.updatedAt !== note.createdAt && (

@@ -1,9 +1,11 @@
+import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
-import cors from 'cors';
 import { connectDB } from './config/db.js';
+import {protect} from './middleware/authMiddleware.js';
 import rateLimiter from './middleware/rateLimiter.js';
 import notesRoutes from './routes/notesRoutes.js';
+import authRoutes from './routes/authRoutes.js';
 
 
 dotenv.config();
@@ -16,11 +18,10 @@ app.use(cors({
 }));
 app.use(rateLimiter);
 
+app.use('/api/auth', authRoutes);
+app.use('/api/notes', protect, notesRoutes);
+
 const PORT = process.env.PORT || 5001;
-
-
-app.use('/api/notes', notesRoutes);~
-
 connectDB().then(() => {
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

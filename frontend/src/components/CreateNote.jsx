@@ -1,6 +1,6 @@
-import axios from 'axios';
 import { X } from 'lucide-react';
 import { useState } from 'react';
+import apiClient from '../lib/apiClient';
 
 const CreateNote = ({ isOpen, onClose, onNoteCreated }) => {
     const [title, setTitle] = useState('');
@@ -12,7 +12,7 @@ const CreateNote = ({ isOpen, onClose, onNoteCreated }) => {
         setLoading(true);
 
         try {
-            await axios.post('http://localhost:5001/api/notes', { title, content });
+            await apiClient.post('/notes', { title, content });
             setTitle('');
             setContent('');
             onClose();
