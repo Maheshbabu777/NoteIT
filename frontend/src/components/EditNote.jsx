@@ -1,6 +1,6 @@
-import axios from "axios";
 import { X } from 'lucide-react';
 import { useEffect, useState } from "react";
+import apiClient from "../lib/apiClient";
 
 const EditNote = ({ isOpen, onClose, note, onNoteUpdated }) => {
     const [title, setTitle] = useState('');
@@ -19,7 +19,7 @@ const EditNote = ({ isOpen, onClose, note, onNoteUpdated }) => {
         setLoading(true);
 
         try {
-            await axios.put(`http://localhost:5001/api/notes/${note._id}`, { title, content });
+            await apiClient.put(`/notes/${note._id}`, { title, content });
             onClose();
             onNoteUpdated?.();
         } catch (error) {

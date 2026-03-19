@@ -27,3 +27,8 @@ dist-ssr
 Instructions
 # Ignore all files in the instructions directory
 Instructions/*
+
+
+.env
+.env.*
+!.env.example

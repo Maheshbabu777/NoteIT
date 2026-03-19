@@ -1,11 +1,11 @@
-import axios from 'axios';
 import { PenSquareIcon, Trash2Icon } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { Link } from 'react-router';
+import { Link } from 'react-router-dom';
+import apiClient from '../lib/apiClient';
 import { formatDate } from '../lib/utils';
-import EditNote from './EditNote';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
+import EditNote from './EditNote';
 
 const NoteCard = ({ note, onNoteUpdated, onNoteDeleted }) => {
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -28,7 +28,7 @@ const NoteCard = ({ note, onNoteUpdated, onNoteDeleted }) => {
         setIsDeleting(true);
 
         try {
-            await axios.delete(`http://localhost:5001/api/notes/${note._id}`);
+            await apiClient.delete(`/notes/${note._id}`);
             toast.success('Note deleted successfully');
             onNoteDeleted?.();
             setIsDeleteOpen(false);
@@ -41,7 +41,7 @@ const NoteCard = ({ note, onNoteUpdated, onNoteDeleted }) => {
     };
     return (
         <>
-            <Link to={`/note/${note._id}`} className='card bg-base-100 hover:shadow-lg transition-all duration-200 border-t-4 border-solid border-[#02497e]'>
+            <Link to={`/notes/${note._id}`} className='card bg-base-100 hover:shadow-lg transition-all duration-200 border-t-4 border-solid border-[#02497e]'>
                 <div className='card-body bg-slate-200'>
                     <h3 className='card-title text-base-content'>{note.title}</h3>
                     <p className='text-base-content/70 line-clamp-3'>{note.content}</p>
@@ -50,12 +50,12 @@ const NoteCard = ({ note, onNoteUpdated, onNoteDeleted }) => {
                             {formatDate(new Date(note.createdAt))}
                         </span>
                         <div className='flex items-center gap-1'>
-                            <button onClick={handleEdit} className='btn btn-ghost btn-xs'>
+                            <button onClick={handleEdit} className='pr-3'>
                                 <PenSquareIcon className='size-4' />
                             </button>
                             <button
                                 onClick={handleDelete}
-                                className='btn btn-ghost btn-xs text-error'
+                                className='text-error'
                                 disabled={isDeleting}
                             >
                                 <Trash2Icon className='size-4' />
